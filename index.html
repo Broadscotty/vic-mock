@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Property School — Victoria (mock)</title>
+<style>
+  :root { --bg:#0f1115; --panel:#1a1d24; --fg:#e6e6e6; --muted:#9aa0a6; --accent:#f5a623; --blue:#4a90d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:20px 24px; border-bottom:1px solid #2a2d34; display:flex; align-items:center; gap:16px; }
+  header h1 { margin:0; font-size:20px; }
+  .state-sel { display:flex; gap:8px; }
+  .state-sel button { background:var(--panel); color:var(--fg); border:1px solid #2a2d34; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:14px; }
+  .state-sel button.active { background:var(--accent); color:#000; border-color:var(--accent); font-weight:600; }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px; }
+  .card { background:var(--panel); border:1px solid #2a2d34; border-radius:8px; padding:16px; margin-bottom:16px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+  .stat { background:#14171d; border-radius:6px; padding:12px; }
+  .stat .v { font-size:22px; font-weight:700; color:var(--accent); }
+  .stat .l { font-size:12px; color:var(--muted); margin-top:4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:8px 10px; text-align:left; border-bottom:1px solid #2a2d34; }
+  th { color:var(--muted); font-weight:600; position:sticky; top:0; background:var(--panel); }
+  tr:hover td { background:#20242c; }
+  .note { font-size:12px; color:var(--muted); margin-top:8px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; background:#2a2d34; color:var(--muted); }
+  .proxy { background:#3a2e1a; color:#f5a623; }
+  input.search { background:#14171d; border:1px solid #2a2d34; color:var(--fg); padding:8px 12px; border-radius:6px; width:100%; margin-bottom:12px; }
+  .rowcount { font-size:12px; color:var(--muted); margin-bottom:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Property School</h1>
+  <div class="state-sel">
+    <button onclick="setState('nsw')">NSW</button>
+    <button class="active" onclick="setState('vic')">VIC</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><div class="v">1,269</div><div class="l">Primary zones</div></div>
+      <div class="stat"><div class="v">334</div><div class="l">Secondary zones</div></div>
+      <div class="stat"><div class="v">2,957</div><div class="l">Primary x Secondary cells</div></div>
+      <div class="stat"><div class="v">1,592</div><div class="l">Govt schools</div></div>
+      <div class="stat"><div class="v">236</div><div class="l">Schools with VCE score</div></div>
+      <div class="stat"><div class="v">782</div><div class="l">Suburb price medians</div></div>
+    </div>
+    <p class="note">Victoria 2027 school zones (DataVic, CC BY 4.0). Prices shown are <span class="badge proxy">suburb medians</span> (VPSR quarterly, proxy only — VIC publishes no free transaction-level feed). VCE = median study score (VCAA SSCAI 2025).</p>
+  </div>
+
+  <div class="card">
+    <input class="search" id="q" placeholder="Filter by school or suburb..." oninput="filter()">
+    <div class="rowcount" id="rc"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>School</th><th>Suburb</th><th>VCE median</th><th>% scores 40+</th><th>ICSEA</th><th>Suburb median house $</th><th>Suburb median unit $</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const DATA = [{"name":"Victorian College For The Deaf","suburb":"Melbourne","vce":39,"pct40":40,"icsea":978,"house":null,"unit":490000},{"name":"Clyde Secondary College","suburb":"Clyde","vce":39,"pct40":44.4,"icsea":1013,"house":737500,"unit":null},{"name":"Nossal High School","suburb":"Berwick","vce":37,"pct40":32.4,"icsea":1155,"house":950000,"unit":745000},{"name":"Melbourne High School","suburb":"South Yarra","vce":36,"pct40":29.9,"icsea":1195,"house":2025000,"unit":533000},{"name":"John Monash Science School","suburb":"Clayton","vce":35,"pct40":22,"icsea":1127,"house":1276300,"unit":603000},{"name":"Suzanne Cory High School","suburb":"Werribee","vce":35,"pct40":25,"icsea":1165,"house":682800,"unit":495000},{"name":"Balwyn High School","suburb":"Balwyn North","vce":33,"pct40":19.2,"icsea":1141,"house":2200000,"unit":1080000},{"name":"McKinnon Secondary College","suburb":"Mckinnon","vce":33,"pct40":12.5,"icsea":1118,"house":1800000,"unit":769800},{"name":"Dromana Secondary College","suburb":"Dromana","vce":32,"pct40":8.8,"icsea":1018,"house":965000,"unit":780000},{"name":"Box Hill High School","suburb":"Box Hill","vce":32,"pct40":11.7,"icsea":1123,"house":1757000,"unit":537500},{"name":"Doncaster Secondary College","suburb":"Doncaster","vce":32,"pct40":8.7,"icsea":1067,"house":1500000,"unit":651000},{"name":"Koonung Secondary College","suburb":"Mont Albert North","vce":32,"pct40":8.8,"icsea":1108,"house":1780000,"unit":1009500},{"name":"Vermont Secondary College","suburb":"Vermont","vce":32,"pct40":7.6,"icsea":1122,"house":1300000,"unit":1110500},{"name":"Williamstown High School","suburb":"Williamstown","vce":32,"pct40":10.9,"icsea":1112,"house":1557500,"unit":700000},{"name":"Ashwood High School","suburb":"Ashwood","vce":32,"pct40":10.1,"icsea":1093,"house":1470000,"unit":872000},{"name":"Melbourne Girls College","suburb":"Richmond","vce":32,"pct40":12.1,"icsea":1142,"house":1373000,"unit":557500},{"name":"Charlton College","suburb":"Charlton","vce":32,"pct40":13,"icsea":995,"house":296500,"unit":null},{"name":"Auburn High School","suburb":"Hawthorn East","vce":31,"pct40":10.6,"icsea":1140,"house":2098500,"unit":618000},{"name":"Blackburn High School","suburb":"Blackburn","vce":31,"pct40":9.8,"icsea":1094,"house":1815000,"unit":833000},{"name":"Braybrook College","suburb":"Braybrook","vce":31,"pct40":8.7,"icsea":977,"house":752500,"unit":745000},{"name":"Brighton Secondary College","suburb":"Brighton East","vce":31,"pct40":6,"icsea":1106,"house":2250000,"unit":1306000},{"name":"Mount Alexander 7-12 College","suburb":"Flemington","vce":31,"pct40":8.4,"icsea":1069,"house":1100000,"unit":490000},{"name":"Highvale Secondary College","suburb":"Glen Waverley","vce":31,"pct40":9.7,"icsea":1114,"house":1702500,"unit":885000},{"name":"Kew High School","suburb":"Kew East","vce":31,"pct40":10.3,"icsea":1110,"house":null,"unit":820000},{"name":"Mordialloc College","suburb":"Mordialloc","vce":31,"pct40":9,"icsea":1062,"house":1255000,"unit":800000},{"name":"Northcote High School","suburb":"Northcote","vce":31,"pct40":9,"icsea":1153,"house":1690000,"unit":563000},{"name":"University High School","suburb":"Parkville","vce":31,"pct40":7.8,"icsea":1117,"house":2375000,"unit":440000},{"name":"Kambrya College","suburb":"Berwick","vce":31,"pct40":6.2,"icsea":1045,"house":950000,"unit":745000},{"name":"Forest Hill College","suburb":"Burwood East","vce":31,"pct40":6.7,"icsea":1045,"house":1377500,"unit":640000},{"name":"Sandringham College","suburb":"Sandringham","vce":31,"pct40":7.2,"icsea":1106,"house":2030000,"unit":905000},{"name":"Viewbank College","suburb":"Viewbank","vce":31,"pct40":9.4,"icsea":1125,"house":1230000,"unit":760900},{"name":"Rosehill Secondary College","suburb":"Niddrie","vce":30,"pct40":3.5,"icsea":1027,"house":1200500,"unit":606000},{"name":"Ballarat High School","suburb":"Lake Gardens","vce":30,"pct40":3.6,"icsea":1016,"house":750000,"unit":null},{"name":"Beaumaris Secondary College","suburb":"Beaumaris","vce":30,"pct40":7.5,"icsea":1113,"house":2165000,"unit":1075000},{"name":"Brentwood Secondary College","suburb":"Glen Waverley","vce":30,"pct40":7.4,"icsea":1097,"house":1702500,"unit":885000},{"name":"Buckley Park College","suburb":"Essendon","vce":30,"pct40":7.3,"icsea":1088,"house":1858500,"unit":535000},{"name":"Camberwell High School","suburb":"Canterbury","vce":30,"pct40":7.9,"icsea":1119,"house":3260000,"unit":1507500},{"name":"Eltham High School","suburb":"Eltham","vce":30,"pct40":5.8,"icsea":1101,"house":1288500,"unit":760000},{"name":"Frankston High School","suburb":"Frankston","vce":30,"pct40":5.7,"icsea":1067,"house":881000,"unit":600000},{"name":"Ouyen P-12 College","suburb":"Ouyen","vce":30,"pct40":4,"icsea":956,"house":231500,"unit":null},{"name":"Rainbow P-12 College","suburb":"Rainbow","vce":30,"pct40":3.7,"icsea":980,"house":192000,"unit":null},{"name":"Ringwood Secondary College","suburb":"Ringwood","vce":30,"pct40":9.1,"icsea":1052,"house":1054500,"unit":615000},{"name":"Richmond High School","suburb":"Richmond","vce":30,"pct40":4.9,"icsea":1049,"house":1373000,"unit":557500},{"name":"St Albans Secondary College","suburb":"St Albans","vce":30,"pct40":5.5,"icsea":962,"house":743300,"unit":537000},{"name":"Strathmore Secondary College","suburb":"Strathmore","vce":30,"pct40":6.5,"icsea":1086,"house":1750000,"unit":840000},{"name":"Glen Eira College","suburb":"Caulfield East","vce":30,"pct40":4.8,"icsea":1117,"house":1795000,"unit":570000},{"name":"Elisabeth Murdoch College","suburb":"Langwarrin","vce":30,"pct40":6.6,"icsea":1010,"house":913500,"unit":680000},{"name":"St Helena Secondary College","suburb":"Eltham North","vce":30,"pct40":4.9,"icsea":1065,"house":1210000,"unit":960000},{"name":"Thornbury High School","suburb":"Thornbury","vce":30,"pct40":4.9,"icsea":1067,"house":1392000,"unit":675000},{"name":"Brunswick Secondary College","suburb":"Brunswick","vce":30,"pct40":8.5,"icsea":1119,"house":1350000,"unit":618000},{"name":"Birchip P-12 School","suburb":"Birchip","vce":30,"pct40":6.8,"icsea":989,"house":310000,"unit":null},{"name":"Coburg High School","suburb":"Coburg","vce":30,"pct40":5.4,"icsea":1099,"house":1300000,"unit":610000},{"name":"Albert Park College","suburb":"Albert Park","vce":30,"pct40":7,"icsea":1127,"house":1985000,"unit":1030000},{"name":"Swifts Creek P-12 School","suburb":"Swifts Creek","vce":30,"pct40":0,"icsea":964,"house":null,"unit":null},{"name":"Apollo Bay P-12 College","suburb":"Apollo Bay","vce":29,"pct40":3.9,"icsea":1043,"house":785000,"unit":null},{"name":"Camperdown College","suburb":"Camperdown","vce":29,"pct40":1.1,"icsea":983,"house":478300,"unit":null},{"name":"Lyndhurst Secondary College","suburb":"Cranbourne","vce":29,"pct40":2.5,"icsea":941,"house":737500,"unit":537500},{"name":"Bentleigh Secondary College","suburb":"Bentleigh East","vce":29,"pct40":6.4,"icsea":1082,"house":1480000,"unit":1141000},{"name":"Beaufort Secondary College","suburb":"Beaufort","vce":29,"pct40":0,"icsea":968,"house":445000,"unit":null},{"name":"Belmont High School","suburb":"Belmont","vce":29,"pct40":4.4,"icsea":1053,"house":770000,"unit":545000}];
+function fmt(n){ if(n==null) return '—'; return Number(n).toLocaleString('en-AU'); }
+function render(rows){
+  const tb=document.getElementById('tbody');
+  tb.innerHTML = rows.map(r=>`<tr>
+    <td>${r.name}</td>
+    <td>${r.suburb}</td>
+    <td>${r.vce!=null?r.vce:'—'}</td>
+    <td>${r.pct40!=null?r.pct40+'%':'—'}</td>
+    <td>${r.icsea!=null?r.icsea:'—'}</td>
+    <td>${fmt(r.house)}</td>
+    <td>${fmt(r.unit)}</td>
+  </tr>`).join('');
+  document.getElementById('rc').textContent = rows.length + ' schools';
+}
+function filter(){
+  const q=document.getElementById('q').value.toLowerCase();
+  render(DATA.filter(r=> (r.name+r.suburb).toLowerCase().includes(q)));
+}
+function setState(s){
+  if(s==='nsw'){ window.location.href='https://aplus.property'; return; }
+  document.querySelectorAll('.state-sel button').forEach(b=>b.classList.toggle('active', b.textContent===s.toUpperCase()));
+}
+render(DATA);
+</script>
+</body>
+</html>
+"
