@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Property School — VIC catchment view (mock)</title>
+<title>Property School — VIC (mock)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -27,33 +27,37 @@
 </head>
 <body>
 <header>
-  <h1>VIC catchment view</h1>
+  <h1>VIC</h1>
   <a href="index.html" style="color:var(--accent);font-size:13px;">Table</a>
   <a href="vic-suburbs.html" style="color:var(--accent);font-size:13px;">Suburb medians</a>
-  <a href="vic-suburb-filter.html" style="color:var(--accent);font-size:13px;">Price filter</a>
   <span id="mode" style="color:var(--accent);font-weight:600;font-size:13px;">All suburbs</span>
   <button class="back" id="backBtn" style="display:none" onclick="showAll()">Back to all suburbs</button>
   <div class="controls" id="priceCtrl">
     <label>Max price: <span id="pv" style="color:var(--accent);font-weight:600">$1.0M</span></label>
     <input type="range" id="price" min="200000" max="2000000" step="25000" value="1000000" oninput="update()">
   </div>
-  <div class="legend">
-    <span>Heatmap = suburb median price:</span>
-    <span><span class="swatch" style="background:#2d5a27"></span> &lt; $400k</span>
-    <span><span class="swatch" style="background:#5a8a3a"></span> $400-700k</span>
-    <span><span class="swatch" style="background:#a8b83a"></span> $700k-1.0M</span>
-    <span><span class="swatch" style="background:#d9a03a"></span> $1.0-1.5M</span>
-    <span><span class="swatch" style="background:#c94a2a"></span> &gt; $1.5M</span>
-  </div>
+  <div class="legend" id="legend"></div>
   <span id="status">Loading data...</span>
 </header>
 <div id="map"></div>
-<div class="note" id="note">Click a suburb popup's "View catchment" button to zoom into that high school's catchment and see all suburbs inside it, coloured by median price.</div>
+<div class="note" id="note">Suburb polygons. Heatmap = VCE (school ranking) of the high school catchment each suburb falls into. Price slider filters to suburbs you can afford. Click a suburb's "View catchment" to drill into that catchment (heatmap becomes price).</div>
 
 <script>
 const RAW = 'https://raw.githubusercontent.com/Broadscotty/vic-mock/add-mock/';
-let SUBS = null, CATCH = null;
+let SUBS = null, ZONES = null;
 function fmt(n){ if(n==null) return '—'; return Number(n).toLocaleString('en-AU'); }
+
+// VCE color (school ranking) - green = high
+function vceColor(v){
+  if(v==null) return '#555';
+  v=Number(v);
+  if(v>=35) return '#2d5a27';
+  if(v>=32) return '#5a8a3a';
+  if(v>=29) return '#a8b83a';
+  if(v>=26) return '#d9a03a';
+  return '#c94a2a';
+}
+// price color
 function priceColor(p){
   if(p==null) return '#555';
   if(p<400000) return '#2d5a27';
@@ -62,17 +66,34 @@ function priceColor(p){
   if(p<1500000) return '#d9a03a';
   return '#c94a2a';
 }
+
 const map = L.map('map').setView([-37.0, 144.5], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'OpenStreetMap', maxZoom:18 }).addTo(map);
 let layer = null;
 let currentMode = 'all';
 let currentSchool = null;
 
+const LEGEND_VCE = '<span>Heatmap = VCE (school ranking):</span>'+
+  '<span><span class="swatch" style="background:#2d5a27"></span> ≥35</span>'+
+  '<span><span class="swatch" style="background:#5a8a3a"></span> 32–34</span>'+
+  '<span><span class="swatch" style="background:#a8b83a"></span> 29–31</span>'+
+  '<span><span class="swatch" style="background:#d9a03a"></span> 26–28</span>'+
+  '<span><span class="swatch" style="background:#c94a2a"></span> &lt;26</span>'+
+  '<span><span class="swatch" style="background:#555"></span> no VCE</span>';
+
+const LEGEND_PRICE = '<span>Heatmap = suburb median price:</span>'+
+  '<span><span class="swatch" style="background:#2d5a27"></span> &lt; $400k</span>'+
+  '<span><span class="swatch" style="background:#5a8a3a"></span> $400–700k</span>'+
+  '<span><span class="swatch" style="background:#a8b83a"></span> $700k–1.0M</span>'+
+  '<span><span class="swatch" style="background:#d9a03a"></span> $1.0–1.5M</span>'+
+  '<span><span class="swatch" style="background:#c94a2a"></span> &gt; $1.5M</span>';
+
 function showAll(){
   currentMode='all'; currentSchool=null;
   document.getElementById('mode').textContent='All suburbs';
   document.getElementById('backBtn').style.display='none';
   document.getElementById('priceCtrl').style.display='';
+  document.getElementById('legend').innerHTML = LEGEND_VCE;
   update();
 }
 
@@ -81,8 +102,9 @@ function viewCatchment(school){
   document.getElementById('mode').textContent='Catchment: '+school;
   document.getElementById('backBtn').style.display='';
   document.getElementById('priceCtrl').style.display='none';
+  document.getElementById('legend').innerHTML = LEGEND_PRICE;
   if(layer){ map.removeLayer(layer); }
-  CATCHFEAT = CATCH.features.find(f=> f.properties.school===school || f.properties.name===school);
+  const catchFeat = ZONES.features.find(f=> f.properties.school===school || f.properties.name===school);
   const catchLayer = catchFeat ? L.geoJSON(catchFeat, {style:{color:'#f5a623', weight:3, fillOpacity:0, dashArray:'6 4'}}) : null;
   const subsIn = SUBS.features.filter(f=> f.properties.school===school);
   const subLayer = L.geoJSON({type:'FeatureCollection', features: subsIn}, {
@@ -109,7 +131,7 @@ function update(){
       const p = f.properties;
       const affordable = p.house!=null && p.house <= budget;
       if(!affordable) return { color:'#333', weight:0.3, fillColor:'#444', fillOpacity:0.12 };
-      return { color:'#111', weight:0.4, fillColor:priceColor(p.house), fillOpacity:0.6 };
+      return { color:'#111', weight:0.4, fillColor:vceColor(p.vce), fillOpacity:0.6 };
     },
     onEachFeature: (f, l) => {
       const p = f.properties;
@@ -128,10 +150,10 @@ Promise.all([
   fetch(RAW+'vic-suburbs-ranked.geojson').then(r=>r.json()),
   fetch(RAW+'vic-sec-zones.geojson').then(r=>r.json())
 ]).then(([subs,zones])=>{
-  SUBS=subs; CATCH=zones;
-  document.getElementById('status').textContent='Data loaded, rendering...';
-  update();
+  SUBS=subs; ZONES=zones;
   document.getElementById('status').textContent='';
+  document.getElementById('legend').innerHTML = LEGEND_VCE;
+  update();
   try { layer && map.fitBounds(layer.getBounds()); } catch(e){}
 }).catch(e=>{
   console.error(e);
