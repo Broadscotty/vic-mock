@@ -82,7 +82,7 @@ function viewCatchment(school){
   document.getElementById('backBtn').style.display='';
   document.getElementById('priceCtrl').style.display='none';
   if(layer){ map.removeLayer(layer); }
-  const catchFeat = CATCH.features.find(f=> f.properties.school===school || f.properties.name===school);
+  CATCHFEAT = CATCH.features.find(f=> f.properties.school===school || f.properties.name===school);
   const catchLayer = catchFeat ? L.geoJSON(catchFeat, {style:{color:'#f5a623', weight:3, fillOpacity:0, dashArray:'6 4'}}) : null;
   const subsIn = SUBS.features.filter(f=> f.properties.school===school);
   const subLayer = L.geoJSON({type:'FeatureCollection', features: subsIn}, {
@@ -127,8 +127,8 @@ function update(){
 Promise.all([
   fetch(RAW+'vic-suburbs-ranked.geojson').then(r=>r.json()),
   fetch(RAW+'vic-sec-zones.geojson').then(r=>r.json())
-]).then(([subs,catch])=>{
-  SUBS=subs; CATCH=catch;
+]).then(([subs,zones])=>{
+  SUBS=subs; CATCH=zones;
   document.getElementById('status').textContent='Data loaded, rendering...';
   update();
   document.getElementById('status').textContent='';
